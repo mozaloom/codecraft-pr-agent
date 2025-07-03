@@ -1,73 +1,54 @@
-# Basic MCP Server with PR Template Tools
+# PR Agent - MCP Server
 
-This module implements a basic MCP server that provides tools for analyzing git changes and suggesting appropriate PR templates.
+An intelligent MCP (Model Context Protocol) server that analyzes your git changes and suggests the best PR template for your pull requests.
 
-## Setup
+## What it does
 
-### 1. Install uv
+- **Analyzes your code changes** - Looks at git diffs to understand what you've modified
+- **Suggests PR templates** - Recommends the right template (bug fix, feature, docs, etc.)
+- **Smart matching** - Uses AI to match your changes with appropriate PR templates
 
-Follow the official installation instructions at: https://docs.astral.sh/uv/getting-started/installation/
+## Quick Start
 
-### 2. Install dependencies
-
+### 1. Install dependencies
 ```bash
-# Install all dependencies
 uv sync
-
-# Or install with dev dependencies for testing
-uv sync --all-extras
 ```
 
-### 3. Configure the MCP Server
-
-Add the server to Claude Code:
-
+### 2. Add to Claude
 ```bash
-# Add the MCP server
-claude mcp add pr-agent -- uv --directory /absolute/path/to/dir run server.py
-
-# Verify it's configured
-claude mcp list
+claude mcp add pr-agent -- uv --directory /path/to/this/project run server.py
 ```
 
-## Tools Available
+### 3. Use with Claude
+Make some changes in any git repo, then ask Claude:
+> "Can you analyze my changes and suggest a PR template?"
 
-1. **analyze_file_changes** - Get the full diff and list of changed files
-2. **get_pr_templates** - List available PR templates with their content
-3. **suggest_template** - Let Claude analyze changes and suggest a template
+## Available Templates
 
-## Usage Example
+- **Bug Fix** - For fixing issues and bugs
+- **Feature** - For new functionality
+- **Documentation** - For docs updates
+- **Refactor** - For code cleanup
+- **Test** - For adding tests
+- **Performance** - For optimizations
+- **Security** - For security improvements
 
-1. Make some changes in a git repository
-2. Ask Claude: "Can you analyze my changes and suggest a PR template?"
-3. Claude will:
-   - Use `analyze_file_changes` to see what changed
-   - Analyze the diff to understand the nature of changes
-   - Use `suggest_template` to recommend the most appropriate template
-   - Help you fill out the template based on the specific changes
-
-## How It Works
-
-Unlike traditional template systems that rely on file extensions or simple patterns, this MCP server provides Claude with raw git data and lets Claude's intelligence determine:
-- What type of change is being made (bug fix, feature, refactor, etc.)
-- Which template is most appropriate
-- How to fill out the template based on the actual code changes
-
-This approach leverages Claude's understanding of code and context rather than rigid rules.
-
-## Running Tests
+## Testing
 
 ```bash
-# Run the validation script
-uv run python validate_solution.py
-
-# Run unit tests
+# Run tests
 uv run pytest test_server.py -v
+
+# Validate setup
+uv run python validate_solution.py
 ```
 
-## Running the Server Directly
+## How it works
 
-```bash
-# Start the MCP server
-uv run server.py
-```
+1. You make changes to your code
+2. The server analyzes your git diff
+3. AI matches your changes to the best template type
+4. You get a pre-filled PR template ready to use
+
+That's it! Smart PR templates based on what you actually changed.
