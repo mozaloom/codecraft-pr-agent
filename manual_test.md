@@ -1,4 +1,4 @@
-# Manual Testing Guide for Module 1 Solution
+# Manual Testing Guide
 
 ## Prerequisites
 
