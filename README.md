@@ -1,4 +1,4 @@
-# Module 1: Basic MCP Server with PR Template Tools
+# Basic MCP Server with PR Template Tools
 
 This module implements a basic MCP server that provides tools for analyzing git changes and suggesting appropriate PR templates.
 
@@ -24,7 +24,7 @@ Add the server to Claude Code:
 
 ```bash
 # Add the MCP server
-claude mcp add pr-agent -- uv --directory /absolute/path/to/module1/solution run server.py
+claude mcp add pr-agent -- uv --directory /absolute/path/to/dir run server.py
 
 # Verify it's configured
 claude mcp list
