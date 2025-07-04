@@ -1,3 +1,4 @@
+[![Python CI](https://github.com/mozaloom/codecraft-pr-agent/actions/workflows/main.yml/badge.svg)](https://github.com/mozaloom/codecraft-pr-agent/actions/workflows/main.yml)
 # PR Agent
 
 A Model Context Protocol (MCP) server that automates pull request analysis and team notifications through Slack integration.
