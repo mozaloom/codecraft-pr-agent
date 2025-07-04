@@ -178,6 +178,7 @@ class MCPGeminiClient:
         try:
             template_json = json.loads(template_data)
         except json.JSONDecodeError:
+            print(f"❌ Raw template response: {template_data}")
             template_json = {"error": "Failed to parse template data", "raw": template_data}
         
         return template_json
