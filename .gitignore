@@ -210,3 +210,12 @@ slack-notification/
 github-actions-integration/
 team-guidelines/
 github_events.json
+
+# Binary packages and installers
+*.deb
+*.rpm
+*.pkg
+*.dmg
+*.exe
+*.msi
+cloudflared-linux-amd64.deb

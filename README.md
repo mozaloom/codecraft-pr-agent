@@ -1,74 +1,116 @@
-# PR Agent - MCP Server
+# PR Agent
 
-An intelligent MCP (Model Context Protocol) server that analyzes your git changes and suggests the best PR template for your pull requests using Google Gemini AI.
+A Model Context Protocol (MCP) server that automates pull request analysis and team notifications through Slack integration.
+
+## Overview
+
+This project provides an intelligent PR agent that monitors GitHub workflow events, analyzes pull requests using AI, and sends structured notifications to Slack channels. It combines MCP tools and prompts to create complete team communication workflows.
 
 ## Features
 
-- **Analyzes your code changes** - Looks at git diffs to understand what you've modified
-- **Suggests PR templates** - Recommends the right template (bug fix, feature, docs, etc.)
-- **Smart matching** - Uses AI to match your changes with appropriate PR templates
-- **Gemini Integration** - Leverages Google Gemini AI for intelligent analysis and template generation
+- **Automated PR Analysis**: Uses Google Gemini AI to analyze pull request content and generate insights
+- **GitHub Webhook Integration**: Monitors GitHub Actions events and workflow runs
+- **Slack Notifications**: Sends formatted notifications to Slack channels via webhooks
+- **PR Templates**: Supports multiple PR types with predefined templates (bug fixes, features, documentation, etc.)
+- **Event Storage**: Stores GitHub events for processing and analysis
+- **MCP Server**: Exposes tools and prompts through the Model Context Protocol
 
-## Quick Start
+## Components
 
-### Option 1: Use with Claude Desktop (Recommended)
+### Core Files
 
-1. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
+- `server.py` - Main MCP server with Slack notification integration
+- `webhook_server.py` - GitHub webhook endpoint for receiving events
+- `mcp_gemini_client.py` - Gemini AI client for PR analysis
+- `templates/` - PR templates for different types of changes
 
-2. **Add to Claude**:
-   ```bash
-   claude mcp add pr-agent -- uv --directory /path/to/this/project run server.py
-   ```
+### Templates
 
-3. **Use with Claude**:
-   Make some changes in any git repo, then ask Claude:
-   > "Can you analyze my changes and suggest a PR template?"
+The project includes templates for common PR types:
 
-### Option 2: Standalone Usage
+- Bug fixes
+- Feature implementations
+- Documentation updates
+- Code refactoring
+- Tests
+- Performance improvements
+- Security fixes
 
-1. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
+## Installation
 
-2. **Set up your Gemini API key**:
-    ```bash
-   export GEMINI_API_KEY="your_google_gemini_api_key_here"
-    ```
-
-3. **Run the PR analysis**:
-   ```bash
-   uv run python mcp_gemini_client.py
-   ```
-
-## Available Templates
-
-- **Bug Fix** - For fixing issues and bugs
-- **Feature** - For new functionality
-- **Documentation** - For docs updates
-- **Refactor** - For code cleanup
-- **Test** - For adding tests
-- **Performance** - For optimizations
-- **Security** - For security improvements
-
-## Testing
-
+1. Clone the repository:
 ```bash
-# Run tests
-uv run pytest test_server.py -v
-
-# Validate setup
-uv run python validate_solution.py
+git clone <repository-url>
+cd codecraft-pr-agent
 ```
 
-## How it works
+2. Install dependencies using uv (recommended):
+```bash
+uv sync
+```
 
-1. You make changes to your code
-2. The server analyzes your git diff
-3. AI matches your changes to the best template type
-4. You get a pre-filled PR template ready to use
+Or using pip:
+```bash
+pip install -r requirements.txt
+```
 
-That's it! Smart PR templates based on what you actually changed.
+3. Set up environment variables:
+Create a `.env` file with:
+```
+GEMINI_API_KEY=your_google_gemini_api_key_here
+SLACK_WEBHOOK_URL=your_slack_webhook_url
+```
+
+Alternatively, run the setup script:
+```bash
+bash setup.sh
+```
+
+## Usage
+
+### Start the MCP Server
+
+```bash
+python server.py
+```
+
+### Start the Webhook Server
+
+```bash
+python webhook_server.py
+```
+
+### Configure GitHub Webhooks
+
+Set up a webhook in your GitHub repository pointing to your webhook server endpoint. The webhook should trigger on:
+- Pull request events
+- Workflow run events
+- Check run events
+
+## Configuration
+
+The agent can be configured through environment variables and the templates directory. Modify the templates to customize PR analysis for your team's specific needs.
+
+## Requirements
+
+- Python 3.12+
+- UV package manager (recommended) or pip
+- Google Gemini API key
+- Slack webhook URL
+- GitHub repository with webhook access
+
+## Development
+
+Run tests:
+```bash
+pytest
+```
+
+Or with uv:
+```bash
+uv run pytest
+```
+
+## License
+
+See LICENSE file for details.
