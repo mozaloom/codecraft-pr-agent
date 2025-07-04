@@ -40,7 +40,7 @@ The project includes templates for common PR types:
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/mozaloom/codecraft-pr-agent.git
 cd codecraft-pr-agent
 ```
 
