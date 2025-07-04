@@ -16,8 +16,8 @@ from mcp.server.fastmcp import FastMCP
 # Initialize the FastMCP server
 mcp = FastMCP("pr-agent-slack")
 
-# PR template directory (shared between starter and solution)
-TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
+# PR template directory (in the same project)
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 # Default PR templates
 DEFAULT_TEMPLATES = {
@@ -151,16 +151,26 @@ async def analyze_file_changes(
 @mcp.tool()
 async def get_pr_templates() -> str:
     """List available PR templates with their content."""
-    templates = [
-        {
-            "filename": filename,
-            "type": template_type,
-            "content": (TEMPLATES_DIR / filename).read_text()
-        }
-        for filename, template_type in DEFAULT_TEMPLATES.items()
-    ]
-    
-    return json.dumps(templates, indent=2)
+    try:
+        templates = []
+        for filename, template_type in DEFAULT_TEMPLATES.items():
+            template_path = TEMPLATES_DIR / filename
+            if not template_path.exists():
+                return json.dumps({"error": f"Template file not found: {template_path}"})
+            
+            try:
+                content = template_path.read_text(encoding='utf-8')
+                templates.append({
+                    "filename": filename,
+                    "type": template_type,
+                    "content": content
+                })
+            except Exception as read_error:
+                return json.dumps({"error": f"Failed to read {filename}: {str(read_error)}"})
+        
+        return json.dumps(templates, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"Error in get_pr_templates: {str(e)}", "templates_dir": str(TEMPLATES_DIR)})
 
 
 @mcp.tool()
@@ -171,26 +181,37 @@ async def suggest_template(changes_summary: str, change_type: str) -> str:
         changes_summary: Your analysis of what the changes do
         change_type: The type of change you've identified (bug, feature, docs, refactor, test, etc.)
     """
-    
-    # Get available templates
-    templates_response = await get_pr_templates()
-    templates = json.loads(templates_response)
-    
-    # Find matching template
-    template_file = TYPE_MAPPING.get(change_type.lower(), "feature.md")
-    selected_template = next(
-        (t for t in templates if t["filename"] == template_file),
-        templates[0]  # Default to first template if no match
-    )
-    
-    suggestion = {
-        "recommended_template": selected_template,
-        "reasoning": f"Based on your analysis: '{changes_summary}', this appears to be a {change_type} change.",
-        "template_content": selected_template["content"],
-        "usage_hint": "Claude can help you fill out this template based on the specific changes in your PR."
-    }
-    
-    return json.dumps(suggestion, indent=2)
+    try:
+        # Get available templates
+        templates_response = await get_pr_templates()
+        
+        # Check if templates loading failed
+        templates_data = json.loads(templates_response)
+        if isinstance(templates_data, dict) and "error" in templates_data:
+            return json.dumps({"error": f"Failed to load templates: {templates_data['error']}"})
+        
+        templates = templates_data
+        
+        # Find matching template
+        template_file = TYPE_MAPPING.get(change_type.lower(), "feature.md")
+        selected_template = next(
+            (t for t in templates if t["filename"] == template_file),
+            templates[0] if templates else None  # Default to first template if no match
+        )
+        
+        if not selected_template:
+            return json.dumps({"error": "No templates available"})
+        
+        suggestion = {
+            "recommended_template": selected_template,
+            "reasoning": f"Based on your analysis: '{changes_summary}', this appears to be a {change_type} change.",
+            "template_content": selected_template["content"],
+            "usage_hint": "Claude can help you fill out this template based on the specific changes in your PR."
+        }
+        
+        return json.dumps(suggestion, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"Error in suggest_template: {str(e)}"})
 
 
 @mcp.tool()
