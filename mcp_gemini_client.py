@@ -16,9 +16,17 @@ from mcp.client.stdio import stdio_client
 # Try to load .env file if available
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path
+    
+    # Get the directory where this script is located
+    script_dir = Path(__file__).parent
+    env_file = script_dir / ".env"
+    
+    load_dotenv(env_file)
+    print(f"🔑 MCP Client: Environment loaded from {env_file}")
 except ImportError:
     # python-dotenv not installed, that's fine
+    print("⚠️ MCP Client: python-dotenv not available")
     pass
 
 class MCPGeminiClient:

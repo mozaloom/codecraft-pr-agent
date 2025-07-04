@@ -9,6 +9,22 @@ from datetime import datetime
 from pathlib import Path
 from aiohttp import web
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    
+    # Get the directory where this script is located  
+    script_dir = Path(__file__).parent
+    env_file = script_dir / ".env"
+    
+    load_dotenv(env_file)
+    print(f"🔑 Webhook Server: Environment loaded from {env_file}")
+except ImportError:
+    # python-dotenv not installed, that's fine
+    print("⚠️ Webhook Server: python-dotenv not available")
+    pass
+
 # File to store events
 EVENTS_FILE = Path(__file__).parent / "github_events.json"
 

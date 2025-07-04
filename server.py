@@ -11,6 +11,22 @@ import requests
 from typing import Optional
 from pathlib import Path
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    
+    # Get the directory where this script is located
+    script_dir = Path(__file__).parent
+    env_file = script_dir / ".env"
+    
+    load_dotenv(env_file)
+    print(f"🔑 Environment loaded from {env_file}. SLACK_WEBHOOK_URL present: {'SLACK_WEBHOOK_URL' in os.environ}")
+except ImportError:
+    # python-dotenv not installed, that's fine
+    print("⚠️ python-dotenv not available")
+    pass
+
 from mcp.server.fastmcp import FastMCP
 
 # Initialize the FastMCP server
@@ -294,7 +310,9 @@ async def send_slack_notification(message: str) -> str:
     """
     webhook_url = os.getenv("SLACK_WEBHOOK_URL")
     if not webhook_url:
-        return "Error: SLACK_WEBHOOK_URL environment variable not set"
+        # Debug: List all environment variables that start with SLACK
+        slack_vars = {k: v for k, v in os.environ.items() if k.startswith("SLACK")}
+        return f"Error: SLACK_WEBHOOK_URL environment variable not set. Found env vars: {list(slack_vars.keys())}"
     
     try:
         # Prepare the payload with proper Slack formatting

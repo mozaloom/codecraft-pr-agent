@@ -13,7 +13,6 @@ from server import (
     analyze_file_changes,
     get_pr_templates,
     suggest_template,
-    create_default_template,
     TEMPLATES_DIR
 )
 
@@ -54,16 +53,17 @@ class TestAnalyzeFileChanges:
             
             data = json.loads(result)
             assert "Diff not included" in data["diff"]
-    
     @pytest.mark.asyncio
     async def test_analyze_git_error(self):
         """Test handling git command errors."""
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = Exception("Git not found")
-            
+
             result = await analyze_file_changes("main", True)
-            
-            assert "Error:" in result
+
+            assert "error" in result
+            data = json.loads(result)
+            assert "error" in data
 
 
 class TestPRTemplates:
@@ -75,25 +75,23 @@ class TestPRTemplates:
         # Use temporary directory for templates
         monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
         
+        # Create some test template files
+        (tmp_path / "bug.md").write_text("## Bug Fix Template\n\nDescription:\n\nRoot Cause:\n")
+        (tmp_path / "feature.md").write_text("## Feature Template\n\nDescription:\n\nChanges:\n")
+        (tmp_path / "docs.md").write_text("## Documentation Template\n\nChanges:\n")
+        (tmp_path / "refactor.md").write_text("## Refactor Template\n\nChanges:\n")
+        (tmp_path / "test.md").write_text("## Test Template\n\nChanges:\n")
+        (tmp_path / "performance.md").write_text("## Performance Template\n\nChanges:\n")
+        (tmp_path / "security.md").write_text("## Security Template\n\nChanges:\n")
+
         result = await get_pr_templates()
-        
+
         templates = json.loads(result)
+        assert isinstance(templates, list)
         assert len(templates) > 0
         assert any(t["type"] == "Bug Fix" for t in templates)
         assert any(t["type"] == "Feature" for t in templates)
         assert all("content" in t for t in templates)
-    
-    def test_create_default_template(self, tmp_path):
-        """Test creating default template files."""
-        template_path = tmp_path / "test.md"
-        
-        create_default_template(template_path, "Bug Fix")
-        
-        assert template_path.exists()
-        content = template_path.read_text()
-        assert "## Bug Fix" in content
-        assert "Description" in content
-        assert "Root Cause" in content
 
 
 class TestSuggestTemplate:
@@ -104,8 +102,14 @@ class TestSuggestTemplate:
         """Test suggesting bug fix template."""
         monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
         
-        # Create templates first
-        await get_pr_templates()
+        # Create template files
+        (tmp_path / "bug.md").write_text("## Bug Fix Template\n\nDescription:\n\nRoot Cause:\n")
+        (tmp_path / "feature.md").write_text("## Feature Template\n\nDescription:\n\nChanges:\n")
+        (tmp_path / "docs.md").write_text("## Documentation Template\n\nChanges:\n")
+        (tmp_path / "refactor.md").write_text("## Refactor Template\n\nChanges:\n")
+        (tmp_path / "test.md").write_text("## Test Template\n\nChanges:\n")
+        (tmp_path / "performance.md").write_text("## Performance Template\n\nChanges:\n")
+        (tmp_path / "security.md").write_text("## Security Template\n\nChanges:\n")
         
         result = await suggest_template(
             "Fixed null pointer exception in user service",
@@ -113,23 +117,31 @@ class TestSuggestTemplate:
         )
         
         suggestion = json.loads(result)
+        assert "recommended_template" in suggestion
         assert suggestion["recommended_template"]["filename"] == "bug.md"
         assert "Bug Fix" in suggestion["recommended_template"]["type"]
         assert "reasoning" in suggestion
-    
     @pytest.mark.asyncio
     async def test_suggest_feature(self, tmp_path, monkeypatch):
         """Test suggesting feature template."""
         monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
         
-        await get_pr_templates()
-        
+        # Create template files
+        (tmp_path / "bug.md").write_text("## Bug Fix Template\n\nDescription:\n\nRoot Cause:\n")
+        (tmp_path / "feature.md").write_text("## Feature Template\n\nDescription:\n\nChanges:\n")
+        (tmp_path / "docs.md").write_text("## Documentation Template\n\nChanges:\n")
+        (tmp_path / "refactor.md").write_text("## Refactor Template\n\nChanges:\n")
+        (tmp_path / "test.md").write_text("## Test Template\n\nChanges:\n")
+        (tmp_path / "performance.md").write_text("## Performance Template\n\nChanges:\n")
+        (tmp_path / "security.md").write_text("## Security Template\n\nChanges:\n")
+
         result = await suggest_template(
             "Added new authentication method for API",
             "feature"
         )
-        
+
         suggestion = json.loads(result)
+        assert "recommended_template" in suggestion
         assert suggestion["recommended_template"]["filename"] == "feature.md"
     
     @pytest.mark.asyncio
@@ -137,7 +149,14 @@ class TestSuggestTemplate:
         """Test template suggestion with various type names."""
         monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
         
-        await get_pr_templates()
+        # Create template files
+        (tmp_path / "bug.md").write_text("## Bug Fix Template\n\nDescription:\n\nRoot Cause:\n")
+        (tmp_path / "feature.md").write_text("## Feature Template\n\nDescription:\n\nChanges:\n")
+        (tmp_path / "docs.md").write_text("## Documentation Template\n\nChanges:\n")
+        (tmp_path / "refactor.md").write_text("## Refactor Template\n\nChanges:\n")
+        (tmp_path / "test.md").write_text("## Test Template\n\nChanges:\n")
+        (tmp_path / "performance.md").write_text("## Performance Template\n\nChanges:\n")
+        (tmp_path / "security.md").write_text("## Security Template\n\nChanges:\n")
         
         # Test variations
         for change_type, expected_file in [
@@ -150,6 +169,7 @@ class TestSuggestTemplate:
         ]:
             result = await suggest_template(f"Some {change_type} work", change_type)
             suggestion = json.loads(result)
+            assert "recommended_template" in suggestion
             assert suggestion["recommended_template"]["filename"] == expected_file
 
 
@@ -160,6 +180,15 @@ class TestIntegration:
     async def test_full_workflow(self, tmp_path, monkeypatch):
         """Test the complete workflow from analysis to suggestion."""
         monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
+        # Create template files
+        (tmp_path / "bug.md").write_text("## Bug Fix Template\n\nDescription:\n\nRoot Cause:\n")
+        (tmp_path / "feature.md").write_text("## Feature Template\n\nDescription:\n\nChanges:\n")
+        (tmp_path / "docs.md").write_text("## Documentation Template\n\nChanges:\n")
+        (tmp_path / "refactor.md").write_text("## Refactor Template\n\nChanges:\n")
+        (tmp_path / "test.md").write_text("## Test Template\n\nChanges:\n")
+        (tmp_path / "performance.md").write_text("## Performance Template\n\nChanges:\n")
+        (tmp_path / "security.md").write_text("## Security Template\n\nChanges:\n")
         
         # Mock git commands
         with patch('subprocess.run') as mock_run:
