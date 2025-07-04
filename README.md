@@ -1,28 +1,48 @@
 # PR Agent - MCP Server
 
-An intelligent MCP (Model Context Protocol) server that analyzes your git changes and suggests the best PR template for your pull requests.
+An intelligent MCP (Model Context Protocol) server that analyzes your git changes and suggests the best PR template for your pull requests using Google Gemini AI.
 
-## What it does
+## Features
 
 - **Analyzes your code changes** - Looks at git diffs to understand what you've modified
 - **Suggests PR templates** - Recommends the right template (bug fix, feature, docs, etc.)
 - **Smart matching** - Uses AI to match your changes with appropriate PR templates
+- **Gemini Integration** - Leverages Google Gemini AI for intelligent analysis and template generation
 
 ## Quick Start
 
-### 1. Install dependencies
-```bash
-uv sync
-```
+### Option 1: Use with Claude Desktop (Recommended)
 
-### 2. Add to Claude
-```bash
-claude mcp add pr-agent -- uv --directory /path/to/this/project run server.py
-```
+1. **Install dependencies**:
+   ```bash
+   uv sync
+   ```
 
-### 3. Use with Claude
-Make some changes in any git repo, then ask Claude:
-> "Can you analyze my changes and suggest a PR template?"
+2. **Add to Claude**:
+   ```bash
+   claude mcp add pr-agent -- uv --directory /path/to/this/project run server.py
+   ```
+
+3. **Use with Claude**:
+   Make some changes in any git repo, then ask Claude:
+   > "Can you analyze my changes and suggest a PR template?"
+
+### Option 2: Standalone Usage
+
+1. **Install dependencies**:
+   ```bash
+   uv sync
+   ```
+
+2. **Set up your Gemini API key**:
+    ```bash
+   export GEMINI_API_KEY="your_google_gemini_api_key_here"
+    ```
+
+3. **Run the PR analysis**:
+   ```bash
+   uv run python mcp_gemini_client.py
+   ```
 
 ## Available Templates
 

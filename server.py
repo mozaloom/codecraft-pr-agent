@@ -15,8 +15,8 @@ from mcp.server.fastmcp import FastMCP
 # Initialize the FastMCP server
 mcp = FastMCP("pr-agent")
 
-# PR template directory (shared between starter and solution)
-TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
+# PR template directory (in the same project)
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 # Default PR templates
 DEFAULT_TEMPLATES = {
