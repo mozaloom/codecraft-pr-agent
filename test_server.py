@@ -1,216 +1,193 @@
 #!/usr/bin/env python3
 """
 Unit tests for Module 1: Basic MCP Server
-Run these tests to validate your implementation
 """
 
 import json
 import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-# Import your implemented functions
-try:
-    from server import (
-        mcp,
-        analyze_file_changes,
-        get_pr_templates,
-        suggest_template
-    )
-    IMPORTS_SUCCESSFUL = True
-except ImportError as e:
-    IMPORTS_SUCCESSFUL = False
-    IMPORT_ERROR = str(e)
+from unittest.mock import patch, MagicMock, AsyncMock
+from server import (
+    mcp,
+    analyze_file_changes,
+    get_pr_templates,
+    suggest_template,
+    create_default_template,
+    TEMPLATES_DIR
+)
 
 
-class TestImplementation:
-    """Test that the required functions are implemented."""
-    
-    def test_imports(self):
-        """Test that all required functions can be imported."""
-        assert IMPORTS_SUCCESSFUL, f"Failed to import required functions: {IMPORT_ERROR if not IMPORTS_SUCCESSFUL else ''}"
-        assert mcp is not None, "FastMCP server instance not found"
-        assert callable(analyze_file_changes), "analyze_file_changes should be a callable function"
-        assert callable(get_pr_templates), "get_pr_templates should be a callable function"
-        assert callable(suggest_template), "suggest_template should be a callable function"
-
-
-@pytest.mark.skipif(not IMPORTS_SUCCESSFUL, reason="Imports failed")
 class TestAnalyzeFileChanges:
     """Test the analyze_file_changes tool."""
     
     @pytest.mark.asyncio
-    async def test_returns_json_string(self):
-        """Test that analyze_file_changes returns a JSON string."""
+    async def test_analyze_with_diff(self):
+        """Test analyzing changes with full diff included."""
+        mock_result = MagicMock()
+        mock_result.stdout = "M\tfile1.py\nA\tfile2.py\n"
+        mock_result.stderr = ""
+        
         with patch('subprocess.run') as mock_run:
-            mock_run.return_value = MagicMock(stdout="", stderr="")
+            mock_run.return_value = mock_result
             
-            result = await analyze_file_changes()
+            result = await analyze_file_changes("main", include_diff=True)
             
-            assert isinstance(result, str), "Should return a string"
-            # Should be valid JSON
+            assert isinstance(result, str)
             data = json.loads(result)
-            assert isinstance(data, dict), "Should return a JSON object"
+            assert data["base_branch"] == "main"
+            assert "files_changed" in data
+            assert "statistics" in data
+            assert "commits" in data
+            assert "diff" in data
     
     @pytest.mark.asyncio
-    async def test_includes_required_fields(self):
-        """Test that the result includes expected fields."""
+    async def test_analyze_without_diff(self):
+        """Test analyzing changes without diff content."""
+        mock_result = MagicMock()
+        mock_result.stdout = "M\tfile1.py\n"
+        
         with patch('subprocess.run') as mock_run:
-            mock_run.return_value = MagicMock(stdout="M\tfile1.py\n", stderr="")
+            mock_run.return_value = mock_result
             
-            result = await analyze_file_changes()
+            result = await analyze_file_changes("main", include_diff=False)
+            
             data = json.loads(result)
-            
-            # For starter code, accept error messages; for full implementation, expect data
-            is_implemented = not ("error" in data and "Not implemented" in str(data.get("error", "")))
-            if is_implemented:
-                # Check for some expected fields (flexible to allow different implementations)
-                assert any(key in data for key in ["files_changed", "files", "changes", "diff"]), \
-                    "Result should include file change information"
-            else:
-                # Starter code - just verify it returns something structured
-                assert isinstance(data, dict), "Should return a JSON object even if not implemented"
+            assert "Diff not included" in data["diff"]
     
     @pytest.mark.asyncio
-    async def test_output_limiting(self):
-        """Test that large diffs are properly truncated."""
+    async def test_analyze_git_error(self):
+        """Test handling git command errors."""
         with patch('subprocess.run') as mock_run:
-            # Create a mock diff with many lines
-            large_diff = "\n".join([f"+ line {i}" for i in range(1000)])
+            mock_run.side_effect = Exception("Git not found")
             
-            # Set up mock responses
-            mock_run.side_effect = [
-                MagicMock(stdout="M\tfile1.py\n", stderr=""),  # files changed
-                MagicMock(stdout="1 file changed, 1000 insertions(+)", stderr=""),  # stats
-                MagicMock(stdout=large_diff, stderr=""),  # diff
-                MagicMock(stdout="abc123 Initial commit", stderr="")  # commits
-            ]
+            result = await analyze_file_changes("main", True)
             
-            # Test with default limit (500 lines)
-            result = await analyze_file_changes(include_diff=True)
-            data = json.loads(result)
-            
-            # Check if it's implemented
-            if "error" not in data or "Not implemented" not in str(data.get("error", "")):
-                if "diff" in data and data["diff"] != "Diff not included (set include_diff=true to see full diff)":
-                    diff_lines = data["diff"].split('\n')
-                    # Should be truncated to around 500 lines plus truncation message
-                    assert len(diff_lines) < 600, "Large diffs should be truncated"
-                    
-                    # Check for truncation indicator
-                    if "truncated" in data:
-                        assert data["truncated"] == True, "Should indicate truncation"
-                    
-                    # Should have truncation message
-                    assert "truncated" in data["diff"].lower() or "..." in data["diff"], \
-                        "Should indicate diff was truncated"
+            assert "Error:" in result
 
 
-@pytest.mark.skipif(not IMPORTS_SUCCESSFUL, reason="Imports failed")
-class TestGetPRTemplates:
-    """Test the get_pr_templates tool."""
+class TestPRTemplates:
+    """Test PR template management."""
     
     @pytest.mark.asyncio
-    async def test_returns_json_string(self):
-        """Test that get_pr_templates returns a JSON string."""
+    async def test_get_templates(self, tmp_path, monkeypatch):
+        """Test getting available templates."""
+        # Use temporary directory for templates
+        monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
         result = await get_pr_templates()
         
-        assert isinstance(result, str), "Should return a string"
-        # Should be valid JSON
-        data = json.loads(result)
-        
-        # For starter code, accept error messages; for full implementation, expect list
-        is_implemented = not ("error" in data and isinstance(data, dict))
-        if is_implemented:
-            assert isinstance(data, list), "Should return a JSON array of templates"
-        else:
-            # Starter code - just verify it returns something structured
-            assert isinstance(data, dict), "Should return a JSON object even if not implemented"
-    
-    @pytest.mark.asyncio
-    async def test_returns_templates(self):
-        """Test that templates are returned."""
-        result = await get_pr_templates()
         templates = json.loads(result)
+        assert len(templates) > 0
+        assert any(t["type"] == "Bug Fix" for t in templates)
+        assert any(t["type"] == "Feature" for t in templates)
+        assert all("content" in t for t in templates)
+    
+    def test_create_default_template(self, tmp_path):
+        """Test creating default template files."""
+        template_path = tmp_path / "test.md"
         
-        # For starter code, accept error messages; for full implementation, expect templates
-        is_implemented = not ("error" in templates and isinstance(templates, dict))
-        if is_implemented:
-            assert len(templates) > 0, "Should return at least one template"
-            
-            # Check that templates have expected structure
-            for template in templates:
-                assert isinstance(template, dict), "Each template should be a dictionary"
-                # Should have some identifying information
-                assert any(key in template for key in ["filename", "name", "type", "id"]), \
-                    "Templates should have an identifier"
-        else:
-            # Starter code - just verify it's structured correctly
-            assert isinstance(templates, dict), "Should return structured error for starter code"
+        create_default_template(template_path, "Bug Fix")
+        
+        assert template_path.exists()
+        content = template_path.read_text()
+        assert "## Bug Fix" in content
+        assert "Description" in content
+        assert "Root Cause" in content
 
 
-@pytest.mark.skipif(not IMPORTS_SUCCESSFUL, reason="Imports failed")
 class TestSuggestTemplate:
-    """Test the suggest_template tool."""
+    """Test template suggestion based on analysis."""
     
     @pytest.mark.asyncio
-    async def test_returns_json_string(self):
-        """Test that suggest_template returns a JSON string."""
+    async def test_suggest_bug_fix(self, tmp_path, monkeypatch):
+        """Test suggesting bug fix template."""
+        monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
+        # Create templates first
+        await get_pr_templates()
+        
         result = await suggest_template(
-            "Fixed a bug in the authentication system",
+            "Fixed null pointer exception in user service",
             "bug"
         )
         
-        assert isinstance(result, str), "Should return a string"
-        # Should be valid JSON
-        data = json.loads(result)
-        assert isinstance(data, dict), "Should return a JSON object"
+        suggestion = json.loads(result)
+        assert suggestion["recommended_template"]["filename"] == "bug.md"
+        assert "Bug Fix" in suggestion["recommended_template"]["type"]
+        assert "reasoning" in suggestion
     
     @pytest.mark.asyncio
-    async def test_suggestion_structure(self):
-        """Test that the suggestion has expected structure."""
+    async def test_suggest_feature(self, tmp_path, monkeypatch):
+        """Test suggesting feature template."""
+        monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
+        await get_pr_templates()
+        
         result = await suggest_template(
-            "Added new feature for user management",
+            "Added new authentication method for API",
             "feature"
         )
-        suggestion = json.loads(result)
         
-        # For starter code, accept error messages; for full implementation, expect suggestion
-        is_implemented = not ("error" in suggestion and "Not implemented" in str(suggestion.get("error", "")))
-        if is_implemented:
-            # Check for some expected fields (flexible to allow different implementations)
-            assert any(key in suggestion for key in ["template", "recommended_template", "suggestion"]), \
-                "Should include a template recommendation"
-        else:
-            # Starter code - just verify it's structured correctly
-            assert isinstance(suggestion, dict), "Should return structured error for starter code"
-
-
-@pytest.mark.skipif(not IMPORTS_SUCCESSFUL, reason="Imports failed")
-class TestToolRegistration:
-    """Test that tools are properly registered with FastMCP."""
+        suggestion = json.loads(result)
+        assert suggestion["recommended_template"]["filename"] == "feature.md"
     
-    def test_tools_have_decorators(self):
-        """Test that tool functions are decorated with @mcp.tool()."""
-        # In FastMCP, decorated functions should have certain attributes
-        # This is a basic check that functions exist and are callable
-        assert hasattr(analyze_file_changes, '__name__'), \
-            "analyze_file_changes should be a proper function"
-        assert hasattr(get_pr_templates, '__name__'), \
-            "get_pr_templates should be a proper function"
-        assert hasattr(suggest_template, '__name__'), \
-            "suggest_template should be a proper function"
+    @pytest.mark.asyncio
+    async def test_suggest_with_type_variations(self, tmp_path, monkeypatch):
+        """Test template suggestion with various type names."""
+        monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
+        await get_pr_templates()
+        
+        # Test variations
+        for change_type, expected_file in [
+            ("fix", "bug.md"),
+            ("enhancement", "feature.md"),
+            ("documentation", "docs.md"),
+            ("cleanup", "refactor.md"),
+            ("testing", "test.md"),
+            ("optimization", "performance.md")
+        ]:
+            result = await suggest_template(f"Some {change_type} work", change_type)
+            suggestion = json.loads(result)
+            assert suggestion["recommended_template"]["filename"] == expected_file
+
+
+class TestIntegration:
+    """Integration tests for the complete workflow."""
+    
+    @pytest.mark.asyncio
+    async def test_full_workflow(self, tmp_path, monkeypatch):
+        """Test the complete workflow from analysis to suggestion."""
+        monkeypatch.setattr('server.TEMPLATES_DIR', tmp_path)
+        
+        # Mock git commands
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="M\tsrc/main.py\nM\ttests/test_main.py\n",
+                stderr=""
+            )
+            
+            # 1. Analyze changes
+            analysis_result = await analyze_file_changes("main", True)
+            
+            # 2. Get templates
+            templates_result = await get_pr_templates()
+            
+            # 3. Suggest template based on analysis
+            suggestion_result = await suggest_template(
+                "Updated main functionality and added tests",
+                "feature"
+            )
+            
+            # Verify results
+            assert all(isinstance(r, str) for r in [analysis_result, templates_result, suggestion_result])
+            
+            suggestion = json.loads(suggestion_result)
+            assert "recommended_template" in suggestion
+            assert "template_content" in suggestion
+            assert suggestion["recommended_template"]["type"] == "Feature"
 
 
 if __name__ == "__main__":
-    if not IMPORTS_SUCCESSFUL:
-        print(f"❌ Cannot run tests - imports failed: {IMPORT_ERROR}")
-        print("\nMake sure you've:")
-        print("1. Implemented all three tool functions")
-        print("2. Decorated them with @mcp.tool()")
-        print("3. Installed dependencies with: uv sync")
-        exit(1)
-    
-    # Run tests
     pytest.main([__file__, "-v"])
